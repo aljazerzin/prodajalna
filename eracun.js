@@ -168,7 +168,6 @@ streznik.post('/izpisiRacunBaza', function(zahteva, odgovor) {
   
     var racun = polja.seznamRacunov;
     strankaIzRacuna(racun, function(stranka) {
-      console.log(stranka);
       pesmiIzRacuna(racun, function(pesmi) {
         if (!pesmi) {
           odgovor.sendStatus(500);
@@ -191,19 +190,22 @@ streznik.post('/izpisiRacunBaza', function(zahteva, odgovor) {
 
 // Izpis računa v HTML predstavitvi ali izvorni XML obliki
 streznik.get('/izpisiRacun/:oblika', function(zahteva, odgovor) {
-  pesmiIzKosarice(zahteva, function(pesmi) {
-    if (!pesmi) {
-      odgovor.sendStatus(500);
-    } else if (pesmi.length == 0) {
-      odgovor.send("<p>V košarici nimate nobene pesmi, \
-        zato računa ni mogoče pripraviti!</p>");
-    } else {
-      odgovor.setHeader('content-type', 'text/xml');
-      odgovor.render('eslog', {
-        vizualiziraj: zahteva.params.oblika == 'html' ? true : false,
-        postavkeRacuna: pesmi
-      })  
-    }
+  vrniStranko(zahteva.session.stranka, function(napaka, stranka) {
+    pesmiIzKosarice(zahteva, function(pesmi) {
+      if (!pesmi) {
+        odgovor.sendStatus(500);
+      } else if (pesmi.length == 0) {
+        odgovor.send("<p>V košarici nimate nobene pesmi, \
+          zato računa ni mogoče pripraviti!</p>");
+      } else {
+        odgovor.setHeader('content-type', 'text/xml');
+        odgovor.render('eslog', {
+          vizualiziraj: zahteva.params.oblika == 'html' ? true : false,
+          postavkeRacuna: pesmi,
+          strankaRacun: stranka[0]
+        })  
+      }
+    })
   })
 })
 
@@ -217,6 +219,14 @@ streznik.get('/izpisiRacun', function(zahteva, odgovor) {
 // Vrni stranke iz podatkovne baze
 var vrniStranke = function(callback) {
   pb.all("SELECT * FROM Customer",
+    function(napaka, vrstice) {
+      callback(napaka, vrstice);
+    }
+  );
+}
+
+var vrniStranko = function(idStranke, callback){
+  pb.all("SELECT * FROM Customer WHERE Customer.CustomerId = " + idStranke,
     function(napaka, vrstice) {
       callback(napaka, vrstice);
     }
@@ -295,6 +305,8 @@ streznik.post('/stranka', function(zahteva, odgovor) {
     odgovor.redirect('/')
   });
 })
+
+
 
 // Odjava stranke
 streznik.post('/odjava', function(zahteva, odgovor) {
